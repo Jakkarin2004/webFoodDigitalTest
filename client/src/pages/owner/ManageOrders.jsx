@@ -32,19 +32,7 @@ const ManageOrders = () => {
    const [revenueData, setRevenueData] = useState(null);
   // 
     const token = useAuthStore((state) => state.token);
-  
-  // เอาไว้คลิกปุ่มชำระเงิน
-  const [isServed, setIsServed] = useState(false);
-  const handleClick = () => {
-    if (!isServed) {
-      // ทำงานตอนกดครั้งแรก
-      alert("กำลังเสิร์ฟอาหาร...");
-      setIsServed(true); // เปลี่ยนสถานะว่าเสิร์ฟแล้ว
-    } else {
-      alert("อาหารเสิร์ฟไปแล้วครับ");
-    }
-  };
-
+  // 
 
   const socket = io("http://localhost:3000");
 
@@ -94,13 +82,13 @@ const ManageOrders = () => {
         const detailsResult = await Promise.all(
           orders.map((order) =>
             axios
-              .get(`${API_URL_ORDER}/${order.pending_order_id }`, {
+              .get(`${API_URL_ORDER}/${order.order_id}`, {
                 headers: { Authorization: `Bearer ${token}` },
               })
-              .then((res) => [order.pending_order_id , res.data.items || []])
+              .then((res) => [order.order_id, res.data.items || []])
               .catch((err) => {
-                console.error(`ดึงออเดอร์ ${order.pending_order_id } ล้มเหลว:`, err.message);
-                return [order.pending_order_id , []];
+                console.error(`ดึงออเดอร์ ${order.order_id} ล้มเหลว:`, err.message);
+                return [order.order_id, []];
               })
           )
         );
@@ -117,15 +105,15 @@ const ManageOrders = () => {
     // ✅ ใช้งาน socket
     const handleNewOrder = async (newOrder) => {
       setOrders((prev) => [newOrder, ...prev]);
-      
+
       try {
-        const res = await axios.get(`${API_URL_ORDER}/${newOrder.pending_order_id}`, {
+        const res = await axios.get(`${API_URL_ORDER}/${newOrder.order_id}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
 
         setOrderDetails((prev) => ({
           ...prev,
-          [newOrder.pending_order_id]: res.data.items || [],
+          [newOrder.order_id]: res.data.items || [],
         }));
       } catch (err) {
         console.error("โหลดรายละเอียด order ใหม่ล้มเหลว", err.message);
@@ -186,14 +174,13 @@ useEffect(() => {
     });
   };
 
-//  
    // ฟัง event realtime จาก socket.io
    // ✅ ฟังการเปลี่ยนสถานะแบบ realtime
   useEffect(() => {
     socket.on("order_status_updated", ({ orderId, status }) => {
       setOrders((prevOrders) =>
         prevOrders.map((order) =>
-          order.pending_order_id === orderId ? { ...order, status } : order
+          order.order_id === orderId ? { ...order, status } : order
         )
       );
     });
@@ -462,11 +449,11 @@ useEffect(() => {
 
                   return (
                     <tr
-                      key={order.pending_order_id }
+                      key={order.order_id}
                       className="hover:bg-gradient-to-r hover:from-orange-50 hover:to-amber-50 transition-all duration-200"
                     >
                       <td className="px-6 py-4 font-medium text-gray-800">
-                        #{order.pending_order_id }
+                        #{order.order_id}
                       </td>
                       <td className="px-6 py-4 text-center">
                         <div className="bg-blue-100 text-blue-800 rounded-full w-8 h-8 flex items-center justify-center font-bold mx-auto">
@@ -505,7 +492,7 @@ useEffect(() => {
                                 value={order.status}
                                 onChange={(e) =>
                                   updateOrderStatus(
-                                    order.pending_order_id,
+                                    order.order_id,
                                     e.target.value
                                   )
                                 }
@@ -552,7 +539,7 @@ useEffect(() => {
             <div className="bg-white rounded-2xl p-8 w-full max-w-2xl shadow-2xl border border-gray-100 max-h-[90vh] overflow-y-auto">
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-2xl font-bold text-gray-800">
-                  รายละเอียดคำสั่งซื้อ #{selectedOrder.pending_order_id}
+                  รายละเอียดคำสั่งซื้อ #{selectedOrder.order_id}
                 </h2>
                 <button
                   onClick={() => setSelectedOrder(null)}
@@ -593,7 +580,7 @@ useEffect(() => {
                   รายการอาหาร
                 </h3>
                 <div className="space-y-3">
-                  {orderDetails[selectedOrder.pending_order_id]?.map((item) => (
+                  {orderDetails[selectedOrder.order_id]?.map((item) => (
                     <div
                       key={item.item_id}
                       className="flex justify-between items-center p-4 bg-gray-50 rounded-lg"

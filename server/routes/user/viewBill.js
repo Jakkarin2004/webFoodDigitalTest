@@ -2,68 +2,84 @@ const express = require("express");
 const router = express.Router();
 const db = require("../../config/db");
 
+// ดึงบิลจาก temp_receipts
 router.get("/:order_code", async (req, res) => {
   const { order_code } = req.params;
 
   try {
-    // ✅ 1. ดึงข้อมูลคำสั่งซื้อ
-    const [orders] = await db
+    // 1️⃣ ดึง header จาก temp_receipts
+    const [tempBills] = await db
       .promise()
-      .query(`SELECT * FROM pending_orders WHERE order_code = ?`, [order_code]);
+      .query(`SELECT * FROM temp_receipts WHERE temp_receipt_code = ?`, [
+        order_code,
+      ]);
 
-    if (!orders.length) {
-      return res.status(404).json({ message: "ไม่พบคำสั่งซื้อนี้" });
+    if (!tempBills.length) {
+      return res.status(404).json({ message: "ไม่พบบิลนี้" });
     }
 
-    const order = orders[0];
-    const pendingOrderId = order.pending_order_id;
+    const tempBill = tempBills[0];
 
-    const [items] = await db.promise().query(
-      `SELECT 
-     poi.pending_item_id,
-     poi.pending_order_id,
-     m.menu_name,
-     poi.quantity,
-     poi.price,
-     poi.note,
-     poi.specialRequest,
-     (poi.quantity * poi.price) AS subtotal
-   FROM pending_order_items poi
-   JOIN menu m ON poi.menu_id = m.menu_id
-   WHERE poi.pending_order_id = ?
-   ORDER BY poi.pending_item_id`,
-      [pendingOrderId]
+    // 2️⃣ ดึง orders ทั้งหมดที่ order_code = temp_receipt_code
+    const [orders] = await db
+      .promise()
+      .query(`SELECT * FROM orders WHERE order_code = ?`, [order_code]);
+
+    if (!orders.length) {
+      return res.status(404).json({ message: "ไม่พบคำสั่งซื้อที่เกี่ยวข้อง" });
+    }
+
+    // 3️⃣ ดึงรายการอาหารของแต่ละ order
+    const orderDetails = await Promise.all(
+      orders.map(async (order) => {
+        const [items] = await db.promise().query(
+          `SELECT 
+             oi.item_id,
+             oi.menu_id,
+             m.menu_name,
+             oi.quantity,
+             oi.price,
+             oi.note,
+             oi.specialRequest,
+             (oi.quantity * oi.price) AS subtotal
+           FROM order_items oi
+           JOIN menu m ON oi.menu_id = m.menu_id
+           WHERE oi.order_id = ?
+           ORDER BY oi.item_id`,
+          [order.order_id]
+        );
+
+        return {
+          order_id: order.order_id,
+          status: order.status,
+          table_number: order.table_number,
+          total_price: order.total_price,
+          order_time: order.order_time,
+          items,
+        };
+      })
     );
 
-    // ✅ 3. ส่งข้อมูลกลับ client
     res.json({
       success: true,
-      order: {
-        order_id: order.order_id,
-        order_code: order.order_code,
-        status: order.status,
-        table_number: order.table_number,
-        total_price: order.total_price,
-        created_at: order.created_at,
-        // เพิ่ม field อื่นได้ เช่น customer_name, phone ฯลฯ
-      },
-      items,
+      temp_receipt: tempBill,
+      orders: orderDetails,
     });
   } catch (err) {
-    console.error("❌ ดึงข้อมูลล้มเหลว:", err);
+    console.error("❌ ดึงข้อมูลบิลล้มเหลว:", err);
     res.status(500).json({
       success: false,
-      message: "เกิดข้อผิดพลาดในการดึงคำสั่งซื้อ",
+      message: "เกิดข้อผิดพลาดในการดึงบิล",
     });
   }
 });
 
+// อัปเดตสถานะยกเลิก (เหมือนเดิม)
 router.put("/cancel-order/:order_code", async (req, res) => {
   const { order_code } = req.params;
   const { status } = req.body;
 
   try {
-    // 1. Update status
     const [result] = await db
       .promise()
       .query(`UPDATE orders SET status = ? WHERE order_code = ?`, [
@@ -75,22 +91,23 @@ router.put("/cancel-order/:order_code", async (req, res) => {
       return res.status(404).json({ message: "ไม่พบคำสั่งซื้อนี้" });
     }
 
-    // 2. ดึง order_id เพื่อใช้ emit
+    // ดึง order_id ทั้งหมดที่เกี่ยวข้อง
     const [rows] = await db
       .promise()
-      .query(`SELECT order_id FROM orders WHERE order_code = ?`, [order_code]);
+      .query(`SELECT order_id FROM orders WHERE order_code = ?`, [
+        order_code,
+      ]);
 
-    const orderId = rows[0]?.order_id;
+    const orderIds = rows.map((r) => r.order_id);
 
-    // 3. Emit realtime
     const io = req.app.get("io");
     if (io) {
       const { getTodayCount } = require("../owner/getTodayCount");
       const count = await getTodayCount();
 
-      io.emit("order_status_updated", {
-        orderId, // ใช้ id จริง
-        status,
+      // emit สำหรับทุก order_id
+      orderIds.forEach((orderId) => {
+        io.emit("order_status_updated", { orderId, status });
       });
 
       io.emit("orderCountUpdated", { count });

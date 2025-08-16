@@ -61,12 +61,7 @@ const Navbar = ({ tableNumber: propTableNumber, order_code }) => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
-               <Link
-                to={`/user-menu/table/${tableNumber}`}
-              >
-                <h1 className="text-white text-2xl font-bold">🍽️ ร้านอาหารป้าอ้อ</h1>
-              </Link>
-              
+              <h1 className="text-white text-2xl font-bold">🍽️ ร้านอาหารป้าอ้อ</h1>
             </div>
 
             <div className="hidden md:flex items-center space-x-8">
@@ -138,14 +133,6 @@ const Navbar = ({ tableNumber: propTableNumber, order_code }) => {
               >
                 เกี่ยวกับเรา
               </Link>
-              {orderCodeToUse && (
-                <Link
-                  to={`/user/viewOrder-list/${orderCodeToUse}`}
-                  className="text-white block px-3 py-2 hover:bg-orange-700 rounded"
-                >
-                  รายการคำสั่งซื้อ
-                </Link>
-              )}
             </div>
           </div>
         )}

@@ -376,7 +376,9 @@ const ManageTable = () => {
                           <p className="font-bold text-lg text-gray-800">
                             {table.table_number}
                           </p>
-                          
+                          <p className="text-sm text-gray-500">
+                            ID: {table.table_id}
+                          </p>
                         </div>
                       </div>
                     </td>

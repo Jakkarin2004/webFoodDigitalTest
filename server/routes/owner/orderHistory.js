@@ -6,7 +6,19 @@ const { verifyToken, isOwner } = require("../../middleware/auth");
 // Middleware ตรวจสอบ token และสิทธิ์เจ้าของร้าน
 router.use(verifyToken, isOwner);
 
+// ดึงออเดอร์ทั้งหมด (ไม่จำกัดวันที่)
+// router.get("/all", verifyToken, isOwner, async (req, res) => {
+//   try {
+//     const [rows] = await db.promise().query(
+//       `SELECT * FROM orders ORDER BY order_time DESC`
+//     );
 
+//     res.json({ orders: rows });
+//   } catch (error) {
+//     console.error("🔥 เกิดข้อผิดพลาดใน backend:", error);
+//     res.status(500).json({ message: "เกิดข้อผิดพลาดในฝั่งเซิร์ฟเวอร์" });
+//   }
+// });
 
 router.get("/all", verifyToken, isOwner, async (req, res) => {
   try {

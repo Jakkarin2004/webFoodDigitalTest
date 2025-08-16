@@ -289,7 +289,7 @@ const UserMenu = () => {
 
               <div className="grid grid-cols-2 gap-4 mb-6 text-gray-600">
                 <div className="flex items-center">
-                  
+                  <Users size={18} />
                   <span className="ml-2">
                     หมวด : {selectedFood.category_name}
                   </span>

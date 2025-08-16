@@ -119,7 +119,7 @@ const ManageStaff = () => {
         error.response?.data || error.message
       );
       toast.error(
-        "มีบัญชีผู้ใช้นี้ในระบบแล้ว กรุณาเลือกชื่อผู้ใช้ใหม่"
+        error.response?.data?.error || "เกิดข้อผิดพลาดในการเพิ่มพนักงาน"
       );
     }
   };

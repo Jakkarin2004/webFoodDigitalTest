@@ -8,6 +8,36 @@ router.use(verifyToken, isOwner);
 
 
 
+// อออเดอร์ทั้งหมด
+// router.get("/all", verifyToken, isOwner, async (req, res) => {
+//   try {
+//     const [rows] = await db.promise().query("SELECT * FROM orders"); // หรือคำสั่ง SQL ที่คุณใช้
+//     res.json({ orders: rows });
+//   } catch (error) {
+//     console.error("🔥 เกิดข้อผิดพลาดใน backend:", error);
+//     res.status(500).json({ message: "เกิดข้อผิดพลาดในฝั่งเซิร์ฟเวอร์" });
+//   }
+// });
+
+
+// // ออเดอร์เฉพาะของ "วันนี้"
+// router.get("/all", verifyToken, isOwner, async (req, res) => {
+//   try {
+//     const today = new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Bangkok" });
+
+//     const [rows] = await db.promise().query(
+//       `SELECT * FROM orders 
+//        WHERE DATE(order_time) = ?`,
+//       [today]
+//     );
+
+//     res.json({ orders: rows });
+//   } catch (error) {
+//     console.error("🔥 เกิดข้อผิดพลาดใน backend:", error);
+//     res.status(500).json({ message: "เกิดข้อผิดพลาดในฝั่งเซิร์ฟเวอร์" });
+//   }
+// });
+
 router.get("/table/:tableNumber", verifyToken, async (req, res) => {
   try {
     const today = new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Bangkok" });
@@ -26,6 +56,19 @@ router.get("/table/:tableNumber", verifyToken, async (req, res) => {
   }
 });
 
+
+// router.get("/by-table/:table_number", async (req, res) => {
+//   const tableNumber = req.params.table_number;
+//   try {
+//     const [orders] = await db.promise().query(
+//       `SELECT * FROM orders WHERE table_number = ? ORDER BY created_at DESC`,
+//       [tableNumber]
+//     );
+//     res.json(orders);
+//   } catch (err) {
+//     res.status(500).json({ error: "Server error" });
+//   }
+// });
 
 
 router.get('/count', verifyToken, isOwner, async (req, res) => {

@@ -6,6 +6,7 @@ const path = require('path');
 const db = require('../../config/db');
 const { uploadQrcodeImage, ensureDir } = require('../../middleware/uploadMiddleware');
 
+// ========== MODEL + CONTROLLER ==========
 
 router.post('/', uploadQrcodeImage.single('qrcode_image'), async (req, res) => {
   const { table_number, table_name } = req.body;
@@ -29,7 +30,7 @@ router.post('/', uploadQrcodeImage.single('qrcode_image'), async (req, res) => {
         return res.status(400).json({ message: '❌ โต๊ะนี้มีอยู่แล้วในระบบ' });
       }
 
-      // สร้างไฟล์ QR code 
+      // สร้างไฟล์ QR code (ยังใช้ await ได้เพราะเป็น promise)
       await QRCode.toFile(qrPath, tableUrl, {
         errorCorrectionLevel: 'H',
         type: 'png',

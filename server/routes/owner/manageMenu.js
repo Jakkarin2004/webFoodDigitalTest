@@ -45,49 +45,35 @@ router.post("/", uploadFoodImage.single("menu_image"), (req, res) => {
 
   const menuTypeId = parseInt(menu_type_id, 10);
   if (isNaN(menuTypeId)) {
-    return res.status(400).json({ error: "menu_type_id ต้องเป็นตัวเลขที่ถูกต้อง" });
+    return res
+      .status(400)
+      .json({ error: "menu_type_id ต้องเป็นตัวเลขที่ถูกต้อง" });
   }
+
+  console.log("menu_type_id from req.body:", menu_type_id);
+  console.log("parsed menuTypeId:", menuTypeId);
 
   if (!menuTypeId) {
     return res.status(400).json({ error: "กรุณาเลือกหมวดหมู่เมนู" });
   }
 
-  // ตรวจสอบชื่อเมนูซ้ำในหมวดหมู่เดียวกัน
-  const checkSql = `
-    SELECT * FROM menu 
-    WHERE menu_name = ?
+  const sql = `
+    INSERT INTO menu (menu_name, price, special, detail_menu, menu_type_id, menu_image)
+    VALUES (?, ?, ?, ?, ?, ?)
   `;
 
-  db.query(checkSql, [menu_name], (err, results) => {
-    if (err) {
-      console.error("❌ Query Error:", err.message);
-      return res.status(500).json({ error: "เกิดข้อผิดพลาดในการตรวจสอบเมนู" });
-    }
-
-    if (results.length > 0) {
-      return res.status(409).json({ error: "ชื่อเมนูนี้ถูกใช้งานแล้ว กรุณาเลือกชื่ออื่น" });
-    }
-
-    // ถ้าไม่ซ้ำ ให้เพิ่มเมนู
-    const insertSql = `
-      INSERT INTO menu (menu_name, price, special, detail_menu, menu_type_id, menu_image)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `;
-
-    db.query(
-      insertSql,
-      [menu_name, price, special, detail_menu, menuTypeId, menu_image],
-      (err, result) => {
-        if (err) {
-          console.error("❌ Insert Error:", err.message, err.sqlMessage);
-          return res.status(500).json({ error: "ชื่อเมนูนี้ถูกใช้งานแล้ว กรุณาเลือกชื่ออื่น" });
-        }
-        res.status(201).json({ message: "เพิ่มเมนูสำเร็จ", id: result.insertId });
+  db.query(
+    sql,
+    [menu_name, price, special, detail_menu, menuTypeId, menu_image],
+    (err, result) => {
+      if (err) {
+        console.error("❌ Insert Error:", err.message, err.sqlMessage);
+        return res.status(500).json({ error: "เกิดข้อผิดพลาดในการเพิ่มเมนู" });
       }
-    );
-  });
+      res.status(201).json({ message: "เพิ่มเมนูสำเร็จ", id: result.insertId });
+    }
+  );
 });
-
 
 router.put(
   "/:id",
@@ -95,7 +81,8 @@ router.put(
   deleteOldFoodImage,
   (req, res) => {
     const id = req.params.id;
-    const { menu_name, price, detail_menu, menu_type_id, oldImage, special } = req.body;
+    const { menu_name, price, detail_menu, menu_type_id, oldImage } = req.body;
+    const { special } = req.body;
     const isSpecial = special === "1" || special === 1 || special === true;
 
     // Validation
@@ -103,6 +90,15 @@ router.put(
       return res.status(400).json({ error: "กรุณากรอกข้อมูลให้ครบถ้วน" });
     }
 
+    // ตรวจสอบ menu_type_id ว่าเป็นตัวเลขหรือไม่
+    const parsedMenuTypeId = parseInt(menu_type_id, 10);
+    if (isNaN(parsedMenuTypeId)) {
+      return res
+        .status(400)
+        .json({ error: "menu_type_id ต้องเป็นตัวเลขที่ถูกต้อง" });
+    }
+
+    // ตรวจสอบราคา
     const parsedPrice = parseFloat(price);
     if (isNaN(parsedPrice) || parsedPrice <= 0) {
       return res.status(400).json({ error: "ราคาต้องเป็นตัวเลขที่มากกว่า 0" });
@@ -113,58 +109,125 @@ router.put(
       menu_image = req.file.filename;
     }
 
-    // ตรวจสอบชื่อเมนูซ้ำในหมวดเดียวกัน (ยกเว้นเมนูเดิม)
-    const checkSql = `
-      SELECT * FROM menu 
-      WHERE menu_name = ? AND menu_id != ?
-    `;
+    const sql = `
+    UPDATE menu
+    SET menu_name=?, menu_image=?, price=?, special=?, detail_menu=?, menu_type_id=?
+    WHERE menu_id=?
+  `;
 
-    db.query(checkSql, [menu_name.trim(), id], (err, results) => {
-      if (err) {
-        console.error("❌ Error checking duplicate:", err);
-        return res.status(500).json({ error: "เกิดข้อผิดพลาดในการตรวจสอบชื่อเมนู" });
-      }
-
-      if (results.length > 0) {
-        return res.status(409).json({ error: "มีเมนูชื่อนี้อยู่แล้วในหมวดหมู่เดียวกัน" });
-      }
-
-      // ไม่ซ้ำ -> อัปเดตเมนู
-      const updateSql = `
-        UPDATE menu
-        SET menu_name = ?, menu_image = ?, price = ?, special = ?, detail_menu = ?, menu_type_id = ?
-        WHERE menu_id = ?
-      `;
-
-      db.query(
-        updateSql,
-        [
-          menu_name.trim(),
-          menu_image,
-          parsedPrice,
-          isSpecial ? 1 : 0,
-          detail_menu?.trim() || "",
-          parsedMenuTypeId,
-          id,
-        ],
-        (err, results) => {
-          if (err) {
-            console.error("❌ Error updating menu:", err);
-            return res.status(500).json({ message: "เกิดข้อผิดพลาดในการแก้ไขเมนู" });
-          }
-
-          if (results.affectedRows === 0) {
-            return res.status(404).json({ message: "ไม่พบเมนูที่ต้องการแก้ไข" });
-          }
-
-          res.json({ message: "แก้ไขเมนูสำเร็จ" });
+    db.query(
+      sql,
+      [
+        menu_name.trim(),
+        menu_image,
+        parsedPrice,
+        isSpecial ? 1 : 0, // 🔧 แก้ตรงนี้
+        detail_menu?.trim() || "",
+        parsedMenuTypeId,
+        id,
+      ],
+      (err, results) => {
+        if (err) {
+          console.error("❌ Error updating menu:", err);
+          return res
+            .status(500)
+            .json({ message: "เกิดข้อผิดพลาดในการแก้ไขเมนู" });
         }
-      );
-    });
+
+        if (results.affectedRows === 0) {
+          return res.status(404).json({ message: "ไม่พบเมนูที่ต้องการแก้ไข" });
+        }
+
+        res.json({ message: "แก้ไขเมนูสำเร็จ" });
+      }
+    );
   }
 );
 
+// // เพิ่มเมนูอาหาร พร้อมรูปภาพ
+// router.post("/", uploadFoodImage.single("menu_image"), async (req, res) => {
+//   try {
+//     const { menu_name, price, special, detail_menu, menu_type_id } = req.body;
+//     const menu_image = req.file ? req.file.filename : null;
 
+//     if (!menu_name || !price || !menu_type_id) {
+//       return res.status(400).json({ message: "กรุณากรอกข้อมูลให้ครบ" });
+//     }
+
+//     // บันทึกลงฐานข้อมูล เช่น MySQL
+//     // INSERT INTO menu (menu_name, price, special, detail_menu, menu_type_id, menu_image) VALUES (...)
+
+//     res.status(201).json({ message: "เพิ่มเมนูเรียบร้อย" });
+//   } catch (error) {
+//     console.error(error);
+//     res.status(500).json({ message: "เกิดข้อผิดพลาดในการเพิ่มเมนู" });
+//   }
+// });
+
+// // แก้ไขเมนูอาหาร พร้อมเปลี่ยนรูปภาพ
+// router.put("/:id",
+//   uploadFoodImage.single("menu_image"),
+//   deleteOldFoodImage,
+//   async (req, res) => {
+//     try {
+//       const { menu_name, price, special, detail_menu, menu_type_id, oldImage } = req.body;
+//       const menu_image = req.file ? req.file.filename : oldImage;
+
+//       if (!menu_name || !price || !menu_type_id) {
+//         return res.status(400).json({ message: "กรุณากรอกข้อมูลให้ครบ" });
+//       }
+
+//       // อัพเดตข้อมูลในฐานข้อมูล เช่น
+//       // UPDATE menu SET menu_name=?, price=?, special=?, detail_menu=?, menu_type_id=?, menu_image=? WHERE menu_id=?
+
+//       res.json({ message: "แก้ไขเมนูเรียบร้อย" });
+//     } catch (error) {
+//       console.error(error);
+//       res.status(500).json({ message: "เกิดข้อผิดพลาดในการแก้ไขเมนู" });
+//     }
+// });
+// 🔽 ใช้ใน router.delete
+// DELETE /menus/:id - ลบเมนูพร้อมลบรูปภาพ
+// router.delete("/:id", (req, res) => {
+//   const id = req.params.id;
+
+//   // 1. ดึงชื่อรูปภาพก่อน
+//   const getImageSql = `SELECT menu_image FROM menu WHERE menu_id = ?`;
+//   db.query(getImageSql, [id], (err, results) => {
+//     if (err) {
+//       console.error("❌ ดึงชื่อรูปภาพล้มเหลว:", err);
+//       return res.status(500).json({ message: "เกิดข้อผิดพลาดในการดึงรูปภาพเมนู" });
+//     }
+
+//     if (results.length === 0) {
+//       return res.status(404).json({ message: "ไม่พบเมนูที่ต้องการลบ" });
+//     }
+
+//     const imageName = results[0].menu_image;
+//     const imagePath = path.join(__dirname, "../../public/uploads/food", imageName);
+
+//     // 2. ลบเมนูจากฐานข้อมูล
+//     const deleteSql = `DELETE FROM menu WHERE menu_id = ?`;
+//     db.query(deleteSql, [id], async (err) => {
+//       if (err) {
+//         console.error("❌ ลบเมนูล้มเหลว:", err);
+//         return res.status(500).json({ message: "เกิดข้อผิดพลาดในการลบเมนู" });
+//       }
+
+//       // 3. ลบไฟล์รูปภาพ (ถ้ามี)
+//       if (imageName) {
+//         try {
+//           await fs.promises.unlink(imagePath);
+//           console.log(`🗑️ ลบรูปภาพ ${imageName} สำเร็จ`);
+//         } catch (err) {
+//           console.warn(`⚠️ ไม่พบหรือไม่สามารถลบรูปภาพได้: ${imagePath}`, err.message);
+//         }
+//       }
+
+//       res.json({ message: "ลบเมนูสำเร็จ" });
+//     });
+//   });
+// });
 
 // DELETE /menus/:id - ลบเมนูพร้อมลบรูปภาพ
 router.delete("/:id", (req, res) => {

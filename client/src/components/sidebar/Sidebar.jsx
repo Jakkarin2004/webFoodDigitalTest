@@ -36,7 +36,29 @@ const Sidebar = ({ children, isOpen = true, onToggle }) => {
 
   const token = useAuthStore((state) => state.token);
 
- 
+  // ฟังก์ชันโหลดออเดอร์ใหม่
+
+  // useEffect(() => {
+  //   const socket = io("http://localhost:3000");
+
+  //   socket.on("connect", () => {
+  //     console.log("Socket connected:", socket.id);
+  //   });
+
+  //   socket.on("connect_error", (err) => {
+  //     console.error("Socket connection error:", err);
+  //   });
+
+  //   // ฟัง event orderCountUpdated
+  //   socket.on("orderCountUpdated", (data) => {
+  //     console.log("Received orderCountUpdated:", data);
+  //     setOrderCount(data.count);
+  //   });
+
+  //   return () => {
+  //     socket.disconnect();
+  //   };
+  // }, []);
   useEffect(() => {
     if (!token) return;
 
@@ -66,7 +88,25 @@ const Sidebar = ({ children, isOpen = true, onToggle }) => {
     };
   }, [token]);
 
+  //  useEffect(() => {
+  //     // ฟัง event จำนวนออเดอร์ที่ยังไม่เสร็จ
+  //     socket.on("orderCountUpdated", (data) => {
+  //       console.log("Received orderCountUpdated:", data.count);
+  //       setOrderCount(data.count);
+  //     });
 
+  //     // ฟัง event ยอดขายวันนี้
+  //     socket.on("today_revenue_updated", (data) => {
+  //       console.log("Received today_revenue_updated:", data);
+  //       setTodayRevenue(data);
+  //     });
+
+  //     // ล้าง event listener เมื่อ component unmount
+  //     return () => {
+  //       socket.off("orderCountUpdated");
+  //       socket.off("today_revenue_updated");
+  //     };
+  //   }, []);
 
   const toggleSidebar = () => {
     setCollapsed(!collapsed);
@@ -75,8 +115,34 @@ const Sidebar = ({ children, isOpen = true, onToggle }) => {
   const navigate = useNavigate();
   console.log("orderCount:", orderCount);
 
-  const menuItems = [
+  // useEffect(() => {
+  //   const fetchOrderCount = async () => {
+  //     try {
+  //       const token = useAuthStore.getState().token;
+  //       console.log('orderCount:', orderCount); // ✅ ควรมีค่า เช่น 3
 
+  //       const res = await axios.get('http://localhost:3000/api/owner/orders/count', {
+  //         headers: {
+  //           Authorization: `Bearer ${token}` // ถ้ามี verifyToken
+  //         }
+  //       });
+  //       setOrderCount(res.data.count);
+  //     } catch (err) {
+  //       console.error('โหลดจำนวนออเดอร์ล้มเหลว:', err);
+  //     }
+  //   };
+
+  //   fetchOrderCount();
+  // }, []);
+
+  const menuItems = [
+    // {
+    //   id: 'dashboard',
+    //   label: 'หน้าหลัก',
+    //   icon: Home,
+    //   // active: true,
+    //   path: '/',
+    // },
     {
       id: "calendar",
       label: "จัดการร้าน",
@@ -117,7 +183,12 @@ const Sidebar = ({ children, isOpen = true, onToggle }) => {
       icon: Gift,
       path: "/table",
     },
-
+    // {
+    //   id: 'reviews',
+    //   label: 'รีวิว',
+    //   icon: Star,
+    //   badge: '2'
+    // },
     {
       id: "history",
       label: "ประวัติคำสั่งซื้อ",

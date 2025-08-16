@@ -6,7 +6,18 @@ const { verifyToken, isOwner } = require("../../middleware/auth");
 
 router.use(verifyToken, isOwner);
 
-
+// ดึง staff ทั้งหมด
+// router.get("/", (req, res) => {
+//   db.query(
+//     "SELECT id, first_name, last_name, username, phone_number FROM users WHERE role = 'staff'",
+//     (err, results) => {
+//       if (err) {
+//         return res.status(500).json({ message: "เกิดข้อผิดพลาด", error: err });
+//       }
+//       res.json(results);
+//     }
+//   );
+// });
 // ดึง staff ทั้งหมด พร้อม created_at และ updated_at
 router.get("/", (req, res) => {
   db.query(

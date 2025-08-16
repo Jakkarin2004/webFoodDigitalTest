@@ -34,7 +34,12 @@ io.on("connection", (socket) => {
       console.error("❌ ดึงจำนวนออเดอร์วันนี้ล้มเหลว:", err);
     });
      //  ดึงฟังก์ชันที่จัดการอัปเดตสถานะ
-
+  // const orderStatusHandler = require("./routes/owner/orderStatusHandler");
+  // orderStatusHandler(io, socket);
+  // socket.on("join_order", (order_code) => {
+  //   socket.join(order_code);
+  //   console.log(`Client ${socket.id} joined room ${order_code}`);
+  // });
 
   socket.on("disconnect", () => {
     console.log("🔴 Client disconnected:", socket.id);

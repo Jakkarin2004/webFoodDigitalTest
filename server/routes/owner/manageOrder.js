@@ -8,14 +8,15 @@ router.use(verifyToken);
 const { getTodayRevenue } = require("./getTodayRevenue"); // สร้างไฟล์ช่วยดึงยอดขาย (ดูตัวอย่างด้านล่าง)
 const { getTodayCount } = require("./getTodayCount");
 
-
 // ออเดอร์เฉพาะของ "วันนี้"
 router.get("/all", verifyToken, async (req, res) => {
   try {
-    const today = new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Bangkok" });
+    const today = new Date().toLocaleDateString("sv-SE", {
+      timeZone: "Asia/Bangkok",
+    });
 
     const [rows] = await db.promise().query(
-      `SELECT * FROM pending_orders 
+      `SELECT * FROM orders 
        WHERE DATE(order_time) = ?`,
       [today]
     );
@@ -27,8 +28,7 @@ router.get("/all", verifyToken, async (req, res) => {
   }
 });
 
-
-router.get('/count', verifyToken, async (req, res) => {
+router.get("/count", verifyToken, async (req, res) => {
   try {
     const count = await getTodayCount();
 
@@ -39,24 +39,25 @@ router.get('/count', verifyToken, async (req, res) => {
 
     return res.json({ count });
   } catch (error) {
-    console.error('❌ เกิดข้อผิดพลาด:', error);
-    return res.status(500).json({ message: 'ไม่สามารถดึงจำนวนออเดอร์วันนี้ได้' });
+    console.error("❌ เกิดข้อผิดพลาด:", error);
+    return res
+      .status(500)
+      .json({ message: "ไม่สามารถดึงจำนวนออเดอร์วันนี้ได้" });
   }
 });
-
-
-
 
 // คำนวณยอดขายวันนี้
 router.get("/today-revenue", async (req, res) => {
   try {
-    const today = new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Bangkok" });
+    const today = new Date().toLocaleDateString("sv-SE", {
+      timeZone: "Asia/Bangkok",
+    });
 
     const [result] = await db.promise().query(
       `SELECT 
         COALESCE(SUM(total_price), 0) AS totalRevenue,
         COUNT(*) AS totalOrders
-      FROM pending_orders
+      FROM orders
       WHERE DATE(order_time) = ?
         AND status = 'completed'`,
       [today]
@@ -76,62 +77,62 @@ router.get("/today-revenue", async (req, res) => {
   }
 });
 
+router.get("/:orderId", verifyToken, async (req, res) => {
+  const orderId = req.params.orderId;
 
-router.get("/:pendingOrderId", verifyToken, async (req, res) => {
-  const pendingOrderId = Number(req.params.pendingOrderId);
+  // console.log("🔍 กำลังดึงข้อมูลออเดอร์:", orderId);
 
-  if (!pendingOrderId || isNaN(pendingOrderId)) {
-    return res.status(400).json({ 
+  if (!orderId || isNaN(orderId)) {
+    return res.status(400).json({
       message: "รหัสออเดอร์ไม่ถูกต้อง",
-      success: false 
+      success: false,
     });
   }
 
   try {
+    // ใช้ LEFT JOIN เพื่อให้แสดงข้อมูลแม้ว่าไม่มี menu
     const [results] = await db.promise().query(
       `SELECT 
-         poi.pending_item_id,
-         poi.pending_order_id,
-         poi.menu_id,
+         oi.item_id,
+         oi.order_id,
+         oi.menu_id,
          COALESCE(m.menu_name, 'ไม่พบชื่อเมนู') as menu_name,
-         poi.quantity,
-         poi.note,
-         poi.specialRequest,
-         poi.price,
-         (poi.quantity * poi.price) as subtotal
-       FROM pending_order_items poi
-       LEFT JOIN menu m ON poi.menu_id = m.menu_id
-       WHERE poi.pending_order_id = ?
-       ORDER BY poi.pending_item_id`,
-      [pendingOrderId]
+         oi.quantity,
+         oi.note,
+         oi.specialRequest,
+         oi.price,
+         (oi.quantity * oi.price) as subtotal
+       FROM order_items oi
+       LEFT JOIN menu m ON oi.menu_id = m.menu_id
+       WHERE oi.order_id = ?
+       ORDER BY oi.item_id`,
+      [orderId]
     );
 
+    // console.log("✅ ผลลัพธ์การ query:", results);
+
     if (results.length === 0) {
-      return res.status(404).json({ 
+      return res.status(404).json({
         message: "ไม่พบรายการสินค้าในออเดอร์นี้",
-        success: false 
+        success: false,
       });
     }
 
-    res.json({ 
+    res.json({
       success: true,
       items: results,
-      pendingOrderId,
-      totalItems: results.length
+      orderId: parseInt(orderId),
+      totalItems: results.length,
     });
-
   } catch (error) {
-    console.error("🔥 เกิดข้อผิดพลาดใน backend (pendingOrderId):", error);
-    res.status(500).json({ 
+    console.error("🔥 เกิดข้อผิดพลาดใน backend (orderId):", error);
+    res.status(500).json({
       message: "เกิดข้อผิดพลาดในฝั่งเซิร์ฟเวอร์",
       success: false,
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
     });
   }
 });
-
-
-
 
 router.put("/:orderId/status", verifyToken, async (req, res) => {
   const orderId = Number(req.params.orderId);
@@ -142,13 +143,99 @@ router.put("/:orderId/status", verifyToken, async (req, res) => {
   }
 
   try {
-    const [result] = await db.promise().query(
-      "UPDATE pending_orders SET status = ? WHERE pending_order_id  = ?",
-      [status, orderId]
-    );
+    const [result] = await db
+      .promise()
+      .query("UPDATE orders SET status = ? WHERE order_id = ?", [
+        status,
+        orderId,
+      ]);
 
     if (result.affectedRows === 0) {
       return res.status(404).json({ message: "ไม่พบ order นี้" });
+    }
+
+    // if (status === "completed") {
+    //   // 1️⃣ คัดลอก order จาก orders → pending_orders
+    //   const [pendingOrderInsertResult] = await db.promise().query(
+    //     `INSERT INTO pending_orders (order_code, table_number, order_time, status, total_price)
+    //  SELECT order_code, table_number, order_time, status, total_price
+    //  FROM orders WHERE order_id = ?`,
+    //     [orderId]
+    //   );
+
+    //   const newPendingOrderId = pendingOrderInsertResult.insertId;
+
+    //   // 2️⃣ คัดลอกรายการสินค้าจาก order_items → pending_order_items
+    //   await db.promise().query(
+    //     `INSERT INTO pending_order_items (pending_order_id, menu_id, quantity, price, note, specialRequest)
+    //  SELECT ?, menu_id, quantity, price, note, specialRequest
+    //  FROM order_items WHERE order_id = ?`,
+    //     [newPendingOrderId, orderId]
+    //   );
+
+    //   // 3️⃣ สร้าง receipt ใหม่
+    //   // ดึง order_code ของ order เดิม
+    //   const [orderRows] = await db
+    //     .promise()
+    //     .query(`SELECT order_code FROM orders WHERE order_id = ?`, [orderId]);
+
+    //   if (orderRows.length > 0) {
+    //     const orderCode = orderRows[0].order_code;
+
+    //     await db.promise().query(
+    //       `INSERT INTO receipts (receipt_code, receipt_order_id)
+    //    VALUES (?, ?)`,
+    //       [orderCode, newPendingOrderId]
+    //     );
+    //   }
+
+    //   // ⚠️ ยังไม่ลบ orders/order_items ต้นทาง
+    // }
+    if (status === "completed") {
+      // 1️⃣ คัดลอก order จาก orders → pending_orders
+      const [pendingOrderInsertResult] = await db.promise().query(
+        `INSERT INTO pending_orders (order_code, table_number, order_time, status, total_price)
+     SELECT order_code, table_number, order_time, status, total_price
+     FROM orders WHERE order_id = ?`,
+        [orderId]
+      );
+
+      const newPendingOrderId = pendingOrderInsertResult.insertId;
+
+      // 2️⃣ คัดลอกรายการสินค้าจาก order_items → pending_order_items
+      await db.promise().query(
+        `INSERT INTO pending_order_items (pending_order_id, menu_id, quantity, price, note, specialRequest)
+     SELECT ?, menu_id, quantity, price, note, specialRequest
+     FROM order_items WHERE order_id = ?`,
+        [newPendingOrderId, orderId]
+      );
+
+      // 3️⃣ สร้าง receipt ใหม่ **ถ้า order_code ยังไม่อยู่ใน receipts**
+      const [orderRows] = await db
+        .promise()
+        .query(`SELECT order_code FROM orders WHERE order_id = ?`, [orderId]);
+
+      if (orderRows.length > 0) {
+        const orderCode = orderRows[0].order_code;
+
+        // ตรวจสอบว่า receipt_code นี้มีอยู่แล้วหรือยัง
+        const [existingReceipt] = await db
+          .promise()
+          .query(`SELECT 1 FROM receipts WHERE receipt_code = ? LIMIT 1`, [
+            orderCode,
+          ]);
+
+        if (existingReceipt.length === 0) {
+          // ถ้าไม่มี อยู่ในระบบ ให้ insert
+          await db.promise().query(
+            `INSERT INTO receipts (receipt_code, receipt_order_id)
+         VALUES (?, ?)`,
+            [orderCode, newPendingOrderId]
+          );
+        }
+      }
+
+      // ⚠️ ยังไม่ลบ orders/order_items ต้นทาง
     }
 
     const io = req.app.get("io");
@@ -169,7 +256,6 @@ router.put("/:orderId/status", verifyToken, async (req, res) => {
         // 🔢 จำนวน order ที่ยังไม่เสร็จ
         const count = await getTodayCount();
         io.emit("orderCountUpdated", { count });
-
       } catch (ioErr) {
         console.error("❌ ส่งข้อมูล realtime ล้มเหลว:", ioErr);
       }
@@ -180,15 +266,14 @@ router.put("/:orderId/status", verifyToken, async (req, res) => {
       message: "อัปเดตสถานะสำเร็จ",
       orderId,
       status,
-      success: true
+      success: true,
     });
-
   } catch (err) {
     console.error("❌ อัปเดตสถานะล้มเหลว:", err);
-    res.status(500).json({ message: "เกิดข้อผิดพลาดในฝั่งเซิร์ฟเวอร์", success: false });
+    res
+      .status(500)
+      .json({ message: "เกิดข้อผิดพลาดในฝั่งเซิร์ฟเวอร์", success: false });
   }
 });
-
-
 
 module.exports = router;

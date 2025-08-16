@@ -57,7 +57,33 @@ function createUploader(folderName) {
     });
 }
 
-
+// ฟังก์ชัน deleteOldImage: middleware ลบไฟล์รูปเก่า (ก่อนจะอัพโหลดไฟล์ใหม่)
+// รับ folderName เพื่อรู้ว่าไฟล์เก่าอยู่โฟลเดอร์ไหน
+// อ่านชื่อไฟล์เก่าจาก req.body.oldImage
+// ถ้ามีไฟล์เก่า จะลองลบไฟล์นั้น ถ้าไม่มีหรือผิดพลาดก็ข้ามไป
+// ใช้ promise (then/catch) ในการจัดการไฟล์
+// function deleteOldImage(folderName) {
+//     return (req, res, next) => {
+        
+//         const oldImage = req.body.oldImage;
+//         if (oldImage) {
+//              // สร้าง path ของไฟล์รูปเก่า
+//             const oldImagePath = path.join(__dirname, `../public/uploads/${folderName}`, oldImage);
+//             fs.access(oldImagePath) // เช็คว่าไฟล์มีอยู่ไหม
+//                 .then(() => fs.unlink(oldImagePath))// ถ้ามี ลบไฟล์
+//                 .then(() => {
+//                     console.log("✅ Old image deleted successfully");
+//                     next();  // เรียก next() เพื่อไป middleware ถัดไป
+//                 })
+//                 .catch(err => {// ถ้าไฟล์ไม่เจอหรือลบไม่ได้
+//                     console.warn("⚠️ Old image not found or could not be deleted:", err.message);
+//                     next();// ก็ข้ามไป middleware ถัดไปเหมือนกัน
+//                 });
+//         } else {
+//             next();// ถ้าไม่มี oldImage ให้ข้ามไปเลย
+//         }
+//     };
+// }
 function deleteOldImage(folderName) {
   return (req, res, next) => {
     // เฉพาะตอนมีการอัปโหลดรูปใหม่เท่านั้น

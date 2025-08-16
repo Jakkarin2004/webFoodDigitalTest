@@ -126,7 +126,7 @@ const UserProduct = () => {
   useEffect(() => {
     // เช็คว่ามี order_code อยู่ใน sessionStorage หรือไม่
     const existingOrderCode = sessionStorage.getItem("order_code");
-    setHasPendingOrder(!!existingOrderCode);
+    // setHasPendingOrder(!!existingOrderCode);
 
     const storedCart = JSON.parse(sessionStorage.getItem("cart")) || {
       items: [],
@@ -199,7 +199,12 @@ const UserProduct = () => {
       return;
     }
 
-    const orderCode = generateOrderCode(table_number);
+    // ถ้ามี orderCode ใน sessionStorage ให้ใช้, ไม่สร้างใหม่
+    let orderCode = sessionStorage.getItem("order_code");
+    if (!orderCode) {
+      orderCode = generateOrderCode(table_number);
+      sessionStorage.setItem("order_code", orderCode);
+    }
 
     const orderData = {
       order_code: orderCode,
@@ -216,7 +221,6 @@ const UserProduct = () => {
     try {
       await axios.post("http://localhost:3000/api/user/order", orderData);
       toast.success("ยืนยันคำสั่งซื้อสำเร็จ!");
-      sessionStorage.setItem("order_code", orderCode);
       sessionStorage.removeItem("cart");
       setCart([]);
       setHasPendingOrder(true);
@@ -271,7 +275,10 @@ const UserProduct = () => {
                             {item.name}
                           </h3>
                           <div className="grid grid-cols-2 gap-2 text-sm">
-                            
+                            <div className="text-gray-500">รหัสเมนู:</div>
+                            <div>{item.id}</div>
+                            {/* <div className="text-gray-500">รหัสตะกร้า:</div>
+                            <div>{item.cartItemId}</div> */}
                             <div className="text-gray-500">
                               รายละเอียดเพิ่มเติมจานอาหาร :
                             </div>
@@ -292,7 +299,7 @@ const UserProduct = () => {
                               >
                                 -
                               </button>
-                              <span className="text-lg"> {item.quantity}</span>
+                              <span className="text-lg">{item.quantity}</span>
                               <button
                                 onClick={() =>
                                   updateQuantity(
@@ -310,7 +317,7 @@ const UserProduct = () => {
 
                         <div className="flex flex-col items-end justify-between">
                           <p className="text-2xl font-bold text-orange-600 mb-2">
-                            ราคา : {(parseFloat(item.price) * item.quantity).toFixed(
+                            {(parseFloat(item.price) * item.quantity).toFixed(
                               2
                             )}{" "}
                             บาท
@@ -404,8 +411,6 @@ const UserProduct = () => {
         onConfirm={handleCancelAll}
         onCancel={() => setShowCancelAllModal(false)}
       />
-
-      
     </div>
   );
 };
